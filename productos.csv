@@ -1,0 +1,11 @@
+id;cod_ean;descripcion;t_producto;precio_uni;iva
+1;1234567895;harina;almacen;785;21
+2;2134265872;gomitas arcor;golosinas;5000;30
+3;2145632589;destergente;limpieza;1500;21
+4;6555213302;lavandina;limpieza;2300;21
+5;4521100277;almidon;almacen;1465;51
+6;9863117891;coca cola;almacen;4000;21
+7;5421001452;poett;limpieza;850;21
+8;7854214474;harina integral;almacen;789;21
+9;7412547863;harina de arroz;almacen;2540;21
+9;8542136589;garbanzo;almacen;210;21
