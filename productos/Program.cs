@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 
-
 namespace GestionProductos
 {
 
@@ -62,20 +61,31 @@ namespace GestionProductos
     }
     
 //CONEXION AL ARCHIVO CSV:
+    
     class Program
+{
+    static string ubicacionArchivo; // Variable para almacenar la ubicación del archivo CSV
+    static string separador = ";"; // Separador de campos en el archivo CSV
+
+    static void Main(string[] args)
     {
-        static string ubicacionArchivo = "C:\\Users\\ASUS\\Documents\\ITES 2022\\2024\\supermercado\\productos.csv.csv"; // Ruta del archivo CSV
-        static string separador = ";"; // Separador de campos en el archivo CSV
+        Console.WriteLine("----> Ingrese la ubicación del archivo CSV:");
+        ubicacionArchivo = Console.ReadLine(); // pedir al usuario la ubicación del archivo
 
-        static void Main(string[] args)
+        using (var context = new ProductoContext())
         {
-            using (var context = new ProductoContext())
-            {
-                context.Database.EnsureCreated(); // Crea la base de datos si no existe
+            context.Database.EnsureCreated(); // Crea la base de datos si no existe
 
-                MostrarMenu();
-            }
+            MostrarMenu();
         }
+    }
+
+
+    /*
+    ubicacion  C:\\Users\\ASUS\\Documents\\ITES 2022\\2024\\supermercado\\productos.csv.csv
+        
+
+    */
 
         static void MostrarMenu()
         {
@@ -88,9 +98,7 @@ namespace GestionProductos
                 Console.WriteLine("4 - Actualizar un producto");
                 Console.WriteLine("5 - Mostrar todos los productos");  //PARA MOSTRAR TODO LO QUE HAY CARGADO
                 Console.WriteLine("6 - Salir del programa");
-                Console.Write("\n Seleccione una opción: ");
-                Console.Write("");
-
+                Console.Write("Seleccione una opción: ");
 
                 if (int.TryParse(Console.ReadLine(), out int opcion))
                 {
@@ -126,79 +134,71 @@ namespace GestionProductos
             }
         }
 
-//IMPORTAR PRODUCTOS, SI EL PRODUCTO YA EXISTE NO HACE NADA
-//SI CARGO UNO CON EL MISMO ID LO ACTUALIZA
-
+//IMPORTAR PRODUCTOS CSV A LA BASE DE DATOS:
         static void ImportarProductosDesdeCSV()
-{
-    try
-    {
-        List<Producto> productos = new List<Producto>(); // Lista para almacenar los productos del archivo CSV
-        int productosNuevos = 0; // Contador para productos nuevos importados
-        int productosActualizados = 0; // Contador para productos actualizados
-
-        using (StreamReader archivo = new StreamReader(ubicacionArchivo))
         {
-            archivo.ReadLine(); // Leer la primera línea y descartarla (encabezado)
-            string linea;
-            while ((linea = archivo.ReadLine()) != null)
+            try
             {
-                string[] campos = linea.Split(separador);
-                if (campos.Length >= 6)
+                List<Producto> productos = new List<Producto>();
+                int productosNuevos = 0;
+                
+                using (StreamReader archivo = new StreamReader(ubicacionArchivo))
                 {
-                    if (int.TryParse(campos[0], out int id) && double.TryParse(campos[4], out double precio) && double.TryParse(campos[5], out double iva))
+                    archivo.ReadLine(); // Leer la primera línea y descartarla (encabezado)
+                    string linea;
+                    while ((linea = archivo.ReadLine()) != null)
+        {
+            string[] campos = linea.Split(separador);
+            if (campos.Length >= 6)
+            {
+                if (int.TryParse(campos[0], out int id) && double.TryParse(campos[4], out double precio) && double.TryParse(campos[5], out double iva))
+                {
+                    using (var context = new ProductoContext())
                     {
-                        Producto producto = new Producto()
-                        {
-                            Id = id,
-                            CodigoEAN = campos[1],
-                            Descripcion = campos[2],
-                            TipoProducto = campos[3],
-                            PrecioUnitario = precio,
-                            PorcentajeIVA = iva
-                        };
-
-                        productos.Add(producto);
+                            // Verificar si el producto ya existe en la base de datos
+                            
+                            if (!context.Productos.Any(p => p.Id == id))
+                            {
+                                Producto producto = new Producto()
+                                {
+                                    Id = id,
+                                    CodigoEAN = campos[1],
+                                    Descripcion = campos[2],
+                                    TipoProducto = campos[3],
+                                    PrecioUnitario = precio,
+                                    PorcentajeIVA = iva
+                                };
+                                productos.Add(producto);
+                                productosNuevos++;
+                            }
                     }
+                }
                     else
                     {
                         Console.WriteLine(" ---> Error al leer datos en la línea: {0}", linea);
                     }
-                }
+            }
                 else
                 {
                     Console.WriteLine(" ---> Error: la línea no contiene suficientes campos: {0}", linea);
                 }
-            }
         }
+    }
 
         using (var context = new ProductoContext())
         {
-            foreach (var producto in productos)
-            {
-                var productoExistente = context.Productos.Find(producto.Id);
-                if (productoExistente != null)
-                {
-                    // Actualizar los atributos del producto existente con los valores del nuevo producto
-                    productoExistente.CodigoEAN = producto.CodigoEAN;
-                    productoExistente.Descripcion = producto.Descripcion;
-                    productoExistente.TipoProducto = producto.TipoProducto;
-                    productoExistente.PrecioUnitario = producto.PrecioUnitario;
-                    productoExistente.PorcentajeIVA = producto.PorcentajeIVA;
-                    productosActualizados++;
-                }
-                else
-                {
-                    context.Productos.Add(producto); // Agregar el producto nuevo a la base de datos
-                    productosNuevos++;
-                }
-            }
-
+            context.AddRange(productos);
             context.SaveChanges();
         }
 
-        Console.WriteLine($"*** PRODUCTOS IMPORTADOS EXITOSAMENTE: {productosNuevos} nuevos producto(s) importado(s). ***");
-        Console.WriteLine($"*** PRODUCTOS ACTUALIZADOS EXITOSAMENTE: {productosActualizados} producto(s) actualizado(s). ***");
+        if (productosNuevos == 0)
+        {
+            Console.WriteLine("*** PRODUCTOS IMPORTADOS EXITOSAMENTE: Todos los productos ya existen en la base de datos. ***");
+        }
+        else
+        {
+            Console.WriteLine($"*** PRODUCTO IMPORTADO EXITOSAMENTE: Se importó {productosNuevos} nuevo(s) producto(s). ***");
+        }
     }
     catch (Exception ex)
     {
@@ -212,7 +212,6 @@ namespace GestionProductos
     }
 }
 
-
 //BUSCAR PRODUCTOS POR DESCRIPCION---
         static void BuscarProductosPorDescripcion()
         {
@@ -222,7 +221,7 @@ namespace GestionProductos
             try
             {
                 using (var context = new ProductoContext())
-                {                                                         //busca los productos
+                {
                     var productosEncontrados = context.Productos.Where(p => p.Descripcion.ToLower().Contains(descripcion.ToLower())).ToList();
 
                     if (productosEncontrados.Any())
@@ -274,7 +273,6 @@ namespace GestionProductos
                 }
             }
         }
-
 
 //ACTUALIZAR UN PRODUCTO---
         static void ActualizarProducto()
@@ -340,3 +338,4 @@ namespace GestionProductos
         }
     }
 }
+
